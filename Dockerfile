@@ -1,12 +1,18 @@
-# ----------- build stage ----------- #
-FROM gradle:8.5-jdk17-alpine AS build
-WORKDIR /app
-COPY --chown=gradle:gradle . .
-RUN gradle build -x test
-
-# ----------- run stage ----------- #
 FROM openjdk:17-alpine
+
 WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# Gradle Wrapperと設定ファイルだけ先にコピー
+COPY gradlew .
+COPY gradle gradle
+COPY build.gradle .
+COPY settings.gradle .
+
+# 依存ダウンロード
+RUN ./gradlew dependencies
+
+# ソース全コピー（あとでvolumeで上書き）
+COPY . .
+
+# 起動コマンドはbootRun＋--continuous（変更監視モード）
+CMD ["./gradlew", "bootRun", "--continuous"]
